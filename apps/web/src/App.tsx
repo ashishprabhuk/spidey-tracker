@@ -1,10 +1,12 @@
 import React from 'react';
 import { useTrackerStore } from './stores/useTrackerStore';
 import { Header } from './components/HUD/Header';
+import { PwaInstallBanner } from './components/HUD/PwaInstallBanner';
 import { CommandPanel } from './components/HUD/CommandPanel';
 import { TargetIntelPanel } from './components/HUD/TargetIntelPanel';
 import { PaniPuriPanel } from './components/HUD/PaniPuriPanel';
 import { EventLog } from './components/HUD/EventLog';
+import { MobileDrawer } from './components/HUD/MobileDrawer';
 import { BootScreen } from './components/HUD/BootScreen';
 import { TrackerMap } from './components/Map/TrackerMap';
 
@@ -22,30 +24,38 @@ export const App: React.FC = () => {
       {/* Header Bar */}
       <Header />
 
+      {/* PWA App Install Banner */}
+      <PwaInstallBanner />
+
       {/* Core Command Terminal Workspace */}
       <main className="flex-1 relative w-full h-full overflow-hidden">
-        {/* Main Tactical Map background (70-80% spatial domination) */}
+        {/* Main Tactical Map background */}
         <div className="absolute inset-0 z-0">
           <TrackerMap />
         </div>
 
-        {/* Floating Side Panels HUD Overlay */}
-        <div className="absolute inset-0 z-20 pointer-events-none p-3 flex flex-col md:flex-row justify-between items-start space-y-3 md:space-y-0">
+        {/* Desktop Floating Side Panels Overlay (hidden on mobile) */}
+        <div className="hidden md:flex absolute inset-0 z-20 pointer-events-none p-3 justify-between items-start space-x-3">
           {/* Left Control Column */}
-          <div className="w-full md:w-80 pointer-events-auto">
+          <div className="w-80 pointer-events-auto">
             <CommandPanel />
           </div>
 
           {/* Right Intel Column */}
-          <div className="w-full md:w-80 pointer-events-auto space-y-3">
+          <div className="w-80 pointer-events-auto space-y-3">
             {selectedTarget && <TargetIntelPanel />}
             {selectedPaniPuri && <PaniPuriPanel />}
           </div>
         </div>
+
+        {/* Mobile Responsive Bottom Drawer HUD */}
+        <MobileDrawer />
       </main>
 
-      {/* Bottom Live Event Stream Ticker */}
-      <EventLog />
+      {/* Desktop Live Event Stream Ticker */}
+      <div className="hidden md:block">
+        <EventLog />
+      </div>
     </div>
   );
 };

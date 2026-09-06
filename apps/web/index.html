@@ -3,9 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>SPIDEY TRACKER — Tamil Nadu Intelligence Command Center</title>
     <meta name="description" content="A cinematic retro-arcade fictional Spider-Man tracking terminal for Tamil Nadu sector." />
+
+    <!-- PWA & Mobile Web App Meta Tags -->
+    <meta name="theme-color" content="#07111F" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="SpideyTracker" />
+    <link rel="apple-touch-icon" href="/pwa-192x192.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
     <!-- MapLibre CSS -->
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.3.0/dist/maplibre-gl.css" />
     <!-- Google Fonts -->
@@ -13,7 +23,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Pixelify+Sans:wght@500;700&family=Press+Start+2P&display=swap" rel="stylesheet">
   </head>
-  <body class="bg-[#07111F] text-[#E8F7FF] font-mono overflow-hidden select-none">
+  <body class="bg-[#07111F] text-[#E8F7FF] font-mono overflow-hidden select-none touch-manipulation">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

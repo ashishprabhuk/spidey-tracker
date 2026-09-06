@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <rect width="192" height="192" fill="#07111F" rx="32" />
+  <rect x="8" y="8" width="176" height="176" fill="none" stroke="#28A9D6" stroke-width="4" rx="28" />
+  <!-- Tactical Reticle Grid -->
+  <line x1="96" y1="20" x2="96" y2="172" stroke="#1C55A0" stroke-width="2" stroke-dasharray="4,4" />
+  <line x1="20" y1="96" x2="172" y2="96" stroke="#1C55A0" stroke-width="2" stroke-dasharray="4,4" />
+  <circle cx="96" cy="96" r="64" fill="none" stroke="#28A9D6" stroke-width="3" opacity="0.6" />
+  <circle cx="96" cy="96" r="40" fill="none" stroke="#8DEBFF" stroke-width="2" />
+  <!-- Spider Emblem Core -->
+  <path d="M96 68 C80 68 76 84 76 96 C76 112 88 124 96 124 C104 124 116 112 116 96 C116 84 112 68 96 68 Z" fill="#EF4B45" />
+  <!-- Legs -->
+  <path d="M76 84 L40 64 M76 96 L32 96 M76 108 L44 124 M116 84 L152 64 M116 96 L160 96 M116 108 L148 124" stroke="#EF4B45" stroke-width="6" stroke-linecap="round" />
+  <!-- Eyes -->
+  <polygon points="84,84 94,92 88,96" fill="#FFFFFF" />
+  <polygon points="108,84 98,92 104,96" fill="#FFFFFF" />
+</svg>
