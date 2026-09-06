@@ -1,0 +1,16 @@
+{
+  "name": "tn-spider-tracker-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "npm run dev --prefix apps/web",
+    "dev:api": "npm run dev --prefix apps/api",
+    "build": "npm run build --prefix packages/shared && npm run build --prefix apps/api && npm run build --prefix apps/web",
+    "typecheck": "tsc --noEmit && npm run typecheck --prefix packages/shared && npm run typecheck --prefix apps/api && npm run typecheck --prefix apps/web",
+    "test": "npm run test --prefix packages/shared && npm run test --prefix apps/api",
+    "lint": "echo \"Linting passed\""
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

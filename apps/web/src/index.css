@@ -1,0 +1,121 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CRT Screen Effect */
+.crt-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9999;
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%, 
+    rgba(0, 0, 0, 0.25) 50%
+  ), linear-gradient(
+    90deg,
+    rgba(255, 0, 0, 0.03),
+    rgba(0, 255, 0, 0.01),
+    rgba(0, 0, 255, 0.03)
+  );
+  background-size: 100% 3px, 6px 100%;
+  opacity: 0.75;
+}
+
+/* Custom Pixel/Cyber Box Borders */
+.cyber-border {
+  border: 2px solid #28A9D6;
+  box-shadow: inset 0 0 10px rgba(40, 169, 214, 0.2), 0 0 10px rgba(40, 169, 214, 0.3);
+  position: relative;
+}
+
+.cyber-border-red {
+  border: 2px solid #EF4B45;
+  box-shadow: inset 0 0 10px rgba(239, 75, 69, 0.2), 0 0 12px rgba(239, 75, 69, 0.4);
+}
+
+.cyber-border-yellow {
+  border: 2px solid #FF9F43;
+  box-shadow: inset 0 0 10px rgba(255, 159, 67, 0.2), 0 0 12px rgba(255, 159, 67, 0.4);
+}
+
+/* Tactical Corner Accents */
+.cyber-box {
+  position: relative;
+  background: #0B1728;
+}
+
+.cyber-box::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid #8DEBFF;
+  border-left: 2px solid #8DEBFF;
+}
+
+.cyber-box::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-bottom: 2px solid #8DEBFF;
+  border-right: 2px solid #8DEBFF;
+}
+
+/* Scanning Reticle pulse */
+@keyframes targetPulse {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
+}
+
+.animate-target-pulse {
+  animation: targetPulse 1.8s ease-in-out infinite;
+}
+
+/* Radar Sweep Line Animation */
+@keyframes radarSweep {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.radar-sweep-line {
+  transform-origin: center;
+  animation: radarSweep 4s linear infinite;
+}
+
+/* Custom Scrollbar for Event Log */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #07111F;
+}
+::-webkit-scrollbar-thumb {
+  background: #1C55A0;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #28A9D6;
+}
