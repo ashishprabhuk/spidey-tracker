@@ -36,6 +36,9 @@ interface TrackerStore {
   soundEnabled: boolean;
   booted: boolean;
   userLocation: { lat: number; lng: number };
+  locationState: 'idle' | 'requesting' | 'granted' | 'denied' | 'unavailable';
+  locationAccuracy: number | null;
+  requestUserLocation: () => Promise<{ lat: number; lng: number } | null>;
 
   // Signals Domain State
   signals: Signal[];
@@ -52,6 +55,10 @@ interface TrackerStore {
   paniPuriLocations: PaniPuriLocation[];
   activities: Activity[];
   activeFilter: 'ALL' | 'TARGET' | 'PANI_PURI' | 'ACTIVITY';
+
+  // Location Navigation State
+  navTargetCoords: { lat: number; lng: number } | null;
+  flyToLocation: (coords: { lat: number; lng: number }) => void;
 
   // Signal Actions
   createSignal: (input: SignalCreateInput) => Signal;
@@ -98,6 +105,56 @@ export const useTrackerStore = create<TrackerStore>((set, get) => ({
   soundEnabled: true,
   booted: false,
   userLocation: { lat: 13.0827, lng: 80.2707 },
+  locationState: 'idle',
+  locationAccuracy: null,
+  navTargetCoords: null,
+
+  flyToLocation: (coords) => {
+    set({ navTargetCoords: coords });
+  },
+
+  requestUserLocation: async () => {
+    const { addLog } = get();
+    if (typeof window === 'undefined' || !('geolocation' in navigator)) {
+      set({ locationState: 'unavailable' });
+      addLog('BROWSER GEOLOCATION UNAVAILABLE', 'warn');
+      return null;
+    }
+
+    set({ locationState: 'requesting' });
+    addLog('LOCATING USER GPS POSITION...', 'info');
+
+    return new Promise<{ lat: number; lng: number } | null>((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          const accuracy = Math.round(pos.coords.accuracy);
+
+          set({
+            userLocation: { lat, lng },
+            locationState: 'granted',
+            locationAccuracy: accuracy,
+          });
+
+          sound.playClick();
+          addLog(`LOCATION ACQUIRED // LAT: ${lat.toFixed(4)}, LNG: ${lng.toFixed(4)} (±${accuracy}m)`, 'success');
+          resolve({ lat, lng });
+        },
+        (err) => {
+          console.warn('Geolocation error:', err.message);
+          set({ locationState: 'denied' });
+          addLog('LOCATION ACCESS DENIED // Manual exploration active', 'warn');
+          resolve(null);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 60000,
+        }
+      );
+    });
+  },
 
   // Signals Data
   signals: initialSignals,

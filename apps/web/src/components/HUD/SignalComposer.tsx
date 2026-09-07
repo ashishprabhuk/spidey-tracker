@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { X, Send, MapPin, Radio, ShieldAlert, Clock, Info, AlertTriangle } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import maplibregl from 'maplibre-gl';
+import { X, Send, MapPin, Radio, AlertTriangle, Navigation } from 'lucide-react';
 import { useTrackerStore } from '../../stores/useTrackerStore';
 import { SignalCategory, SignalPriority } from '@tn-spider-tracker/shared';
 import { sound } from '../../lib/sound';
@@ -27,7 +28,15 @@ const DURATION_PRESETS = [
 ];
 
 export const SignalComposer: React.FC = () => {
-  const { composerOpen, setComposerOpen, createSignal, userLocation } = useTrackerStore();
+  const {
+    composerOpen,
+    setComposerOpen,
+    createSignal,
+    userLocation,
+    locationState,
+    locationAccuracy,
+    requestUserLocation,
+  } = useTrackerStore();
 
   const [icon, setIcon] = useState('🚓');
   const [category, setCategory] = useState<SignalCategory>('SAFETY');
@@ -37,14 +46,73 @@ export const SignalComposer: React.FC = () => {
   const [motto, setMotto] = useState('');
   const [durationMinutes, setDurationMinutes] = useState(60);
 
-  // Position adjustment delta relative to user position
-  const [locationOffset, setLocationOffset] = useState({ lat: 0, lng: 0 });
+  const [selectedCoords, setSelectedCoords] = useState<{ lat: number; lng: number }>({
+    lat: userLocation.lat,
+    lng: userLocation.lng,
+  });
+
+  const pickerContainerRef = useRef<HTMLDivElement>(null);
+  const pickerMapRef = useRef<maplibregl.Map | null>(null);
+
+  // Initialize interactive MapLibre Location Picker Map
+  useEffect(() => {
+    if (!composerOpen || !pickerContainerRef.current || pickerMapRef.current) return;
+
+    try {
+      const initialLat = userLocation.lat;
+      const initialLng = userLocation.lng;
+
+      pickerMapRef.current = new maplibregl.Map({
+        container: pickerContainerRef.current,
+        style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+        center: [initialLng, initialLat],
+        zoom: 14,
+        attributionControl: false,
+      });
+
+      pickerMapRef.current.on('load', () => {
+        if (pickerMapRef.current) {
+          const c = pickerMapRef.current.getCenter();
+          setSelectedCoords({ lat: c.lat, lng: c.lng });
+        }
+      });
+
+      pickerMapRef.current.on('move', () => {
+        if (pickerMapRef.current) {
+          const c = pickerMapRef.current.getCenter();
+          setSelectedCoords({ lat: c.lat, lng: c.lng });
+        }
+      });
+    } catch (e) {
+      console.warn('Picker map init error:', e);
+    }
+
+    return () => {
+      if (pickerMapRef.current) {
+        pickerMapRef.current.remove();
+        pickerMapRef.current = null;
+      }
+    };
+  }, [composerOpen]);
 
   if (!composerOpen) return null;
 
   const handleClose = () => {
     sound.playClick();
     setComposerOpen(false);
+  };
+
+  const handleUseMyLocation = async () => {
+    sound.playClick();
+    const pos = await requestUserLocation();
+    if (pos && pickerMapRef.current) {
+      pickerMapRef.current.flyTo({
+        center: [pos.lng, pos.lat],
+        zoom: 15,
+        speed: 1.4,
+      });
+      setSelectedCoords({ lat: pos.lat, lng: pos.lng });
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -58,18 +126,15 @@ export const SignalComposer: React.FC = () => {
       category,
       priority,
       icon,
-      latitude: userLocation.lat + locationOffset.lat,
-      longitude: userLocation.lng + locationOffset.lng,
+      latitude: selectedCoords.lat,
+      longitude: selectedCoords.lng,
       durationMinutes,
     });
   };
 
-  const activeLat = (userLocation.lat + locationOffset.lat).toFixed(4);
-  const activeLng = (userLocation.lng + locationOffset.lng).toFixed(4);
-
   return (
-    <div className="fixed inset-0 z-50 bg-[#040A14]/80 backdrop-blur-sm flex items-center justify-center p-3 select-none">
-      <div className="max-w-lg w-full bg-[#0B1728] border-2 border-[#28A9D6] p-5 shadow-[0_0_30px_rgba(40,169,214,0.4)] relative max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-[#040A14]/85 backdrop-blur-sm flex items-center justify-center p-3 select-none">
+      <div className="max-w-lg w-full bg-[#0B1728] border-2 border-[#28A9D6] p-5 shadow-[0_0_30px_rgba(40,169,214,0.4)] relative max-h-[92vh] overflow-y-auto">
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b-2 border-[#1C55A0] pb-3 mb-4">
           <div className="flex items-center space-x-2">
@@ -232,24 +297,57 @@ export const SignalComposer: React.FC = () => {
             </div>
           </div>
 
-          {/* Location Preview & Offset */}
-          <div className="bg-[#07111F] border border-[#1C55A0] p-2 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <MapPin className="w-4 h-4 text-[#FF9F43]" />
-              <div>
-                <span className="text-[#8DEBFF] font-bold">SIGNAL GPS:</span>
-                <span className="text-[#8BA9B8] ml-2">
-                  {activeLat}° N, {activeLng}° E
-                </span>
+          {/* Interactive Location Picker Map */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[11px] font-arcade text-[#8DEBFF]">
+                SELECT SIGNAL LOCATION:
+              </label>
+              <button
+                type="button"
+                onClick={handleUseMyLocation}
+                className="text-[10px] font-arcade bg-[#164B8C] hover:bg-[#1C55A0] text-[#8DEBFF] border border-[#28A9D6] px-2 py-0.5 flex items-center space-x-1"
+              >
+                <Navigation className="w-3 h-3 text-[#63D47A]" />
+                <span>USE MY LOCATION</span>
+              </button>
+            </div>
+
+            {/* Embedded Picker Map Container */}
+            <div className="relative w-full h-48 bg-[#040A14] border-2 border-[#1C55A0] overflow-hidden">
+              <div ref={pickerContainerRef} className="w-full h-full absolute inset-0 z-0" />
+
+              {/* Fixed Dead-Center Target Reticle Pin */}
+              <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-20">
+                <div className="relative flex flex-col items-center transform -translate-y-1/2">
+                  <div className="w-10 h-10 rounded-full border-2 border-[#EF4B45] animate-target-pulse absolute shadow-[0_0_15px_rgba(239,75,69,0.8)]" />
+                  <div className="w-8 h-8 bg-[#EF4B45] border-2 border-white rounded-full flex items-center justify-center text-white shadow-lg">
+                    <span className="text-sm">{icon}</span>
+                  </div>
+                  <div className="bg-[#07111F] text-[#8DEBFF] border border-[#28A9D6] text-[8px] font-mono px-1.5 py-0.5 mt-1 font-bold whitespace-nowrap shadow-md">
+                    PAN MAP UNDER PIN
+                  </div>
+                </div>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setLocationOffset({ lat: (Math.random() - 0.5) * 0.01, lng: (Math.random() - 0.5) * 0.01 })}
-              className="text-[9px] bg-[#164B8C] text-[#8DEBFF] px-2 py-1 border border-[#28A9D6] hover:bg-[#1C55A0]"
-            >
-              ADJUST PIN
-            </button>
+
+            {/* Selected Coordinates Bar */}
+            <div className="bg-[#07111F] border border-[#1C55A0] border-t-0 p-2 flex items-center justify-between text-[11px]">
+              <div className="flex items-center space-x-1.5">
+                <MapPin className="w-3.5 h-3.5 text-[#FF9F43]" />
+                <span className="text-[#8DEBFF] font-bold">SELECTED COORDS:</span>
+              </div>
+              <div className="font-mono text-[#E8F7FF] font-bold">
+                {selectedCoords.lat.toFixed(4)}° N, {selectedCoords.lng.toFixed(4)}° E
+              </div>
+            </div>
+
+            {/* Location Accuracy Warning */}
+            {locationAccuracy && (
+              <div className="text-[9px] text-[#8BA9B8] mt-1">
+                LOCATION ACCURACY ±{locationAccuracy}m
+              </div>
+            )}
           </div>
 
           {/* Safety Disclaimer */}
