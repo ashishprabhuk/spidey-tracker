@@ -20,6 +20,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
+      "@tn-spider-tracker/shared": ["../../packages/shared/src"],
       "@tn-spider-tracker/*": ["../../packages/*"]
     }
   },
