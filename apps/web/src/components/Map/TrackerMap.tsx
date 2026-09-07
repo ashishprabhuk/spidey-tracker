@@ -3,6 +3,7 @@ import maplibregl from 'maplibre-gl';
 import { useTrackerStore } from '../../stores/useTrackerStore';
 import { Target, PaniPuriLocation, Activity } from '@tn-spider-tracker/shared';
 import { Target as TargetIcon, Utensils, AlertTriangle, Shield, MapPin, ZoomIn, ZoomOut, Navigation } from 'lucide-react';
+import { TacticalRadar } from './TacticalRadar';
 
 export const TrackerMap: React.FC = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -235,29 +236,37 @@ export const TrackerMap: React.FC = () => {
           })}
       </div>
 
-      {/* Map Control Buttons Overlay */}
-      <div className="absolute right-4 bottom-14 z-30 flex flex-col space-y-2 pointer-events-auto">
-        <button
-          onClick={handleZoomIn}
-          className="w-8 h-8 bg-[#0D2235] border border-[#28A9D6] text-[#8DEBFF] hover:bg-[#164B8C] flex items-center justify-center shadow-lg transition-all"
-          title="Zoom In"
-        >
-          <ZoomIn className="w-4 h-4" />
-        </button>
-        <button
-          onClick={handleZoomOut}
-          className="w-8 h-8 bg-[#0D2235] border border-[#28A9D6] text-[#8DEBFF] hover:bg-[#164B8C] flex items-center justify-center shadow-lg transition-all"
-          title="Zoom Out"
-        >
-          <ZoomOut className="w-4 h-4" />
-        </button>
-        <button
-          onClick={handleRecenter}
-          className="w-8 h-8 bg-[#0D2235] border border-[#FF9F43] text-[#FF9F43] hover:bg-[#FF9F43]/20 flex items-center justify-center shadow-lg transition-all"
-          title="Recenter GPS"
-        >
-          <Navigation className="w-4 h-4" />
-        </button>
+      {/* Bottom Right Tactical Radar & Map Controls HUD Overlay */}
+      <div className="absolute right-4 bottom-14 md:bottom-6 z-30 flex items-end space-x-2 pointer-events-auto">
+        {/* Zoom Controls */}
+        <div className="flex flex-col space-y-1.5 mb-1">
+          <button
+            onClick={handleZoomIn}
+            className="w-7 h-7 sm:w-8 sm:h-8 bg-[#0D2235]/90 border border-[#28A9D6] text-[#8DEBFF] hover:bg-[#164B8C] hover:border-[#8DEBFF] active:scale-95 flex items-center justify-center shadow-lg transition-all"
+            title="Zoom In"
+          >
+            <ZoomIn className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          </button>
+          <button
+            onClick={handleZoomOut}
+            className="w-7 h-7 sm:w-8 sm:h-8 bg-[#0D2235]/90 border border-[#28A9D6] text-[#8DEBFF] hover:bg-[#164B8C] hover:border-[#8DEBFF] active:scale-95 flex items-center justify-center shadow-lg transition-all"
+            title="Zoom Out"
+          >
+            <ZoomOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          </button>
+        </div>
+
+        {/* Compact Tactical Radar */}
+        <TacticalRadar
+          onRecenter={(coords, zoom = 14) => {
+            map.current?.flyTo({
+              center: [coords.lng, coords.lat],
+              zoom,
+              speed: 1.4,
+              essential: true,
+            });
+          }}
+        />
       </div>
     </div>
   );

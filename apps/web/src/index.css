@@ -104,6 +104,19 @@
   animation: radarSweep 4s linear infinite;
 }
 
+.animate-radar-sweep {
+  transform-origin: 80px 80px;
+  animation: radarSweep 4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-radar-sweep,
+  .radar-sweep-line,
+  .animate-target-pulse {
+    animation: none !important;
+  }
+}
+
 /* Custom Scrollbar for Event Log */
 ::-webkit-scrollbar {
   width: 6px;
