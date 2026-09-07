@@ -1,7 +1,7 @@
 {
-  "name": "SPIDEY TRACKER — Tamil Nadu Command Center",
-  "short_name": "SpideyTracker",
-  "description": "A cinematic retro-arcade superhero intelligence terminal for Tamil Nadu sector.",
+  "name": "SPIDEY SIGNAL — Anonymous Location Signal Network",
+  "short_name": "SpideySignal",
+  "description": "An anonymous temporary community location-signal network for discovering what is happening around you right now.",
   "theme_color": "#07111F",
   "background_color": "#07111F",
   "display": "standalone",

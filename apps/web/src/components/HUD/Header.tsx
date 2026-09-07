@@ -1,18 +1,20 @@
 import React from 'react';
 import { useTrackerStore } from '../../stores/useTrackerStore';
-import { Volume2, VolumeX, Monitor, Shield, Radio, Flame } from 'lucide-react';
+import { Volume2, VolumeX, Monitor, Radio, Flame, RadioReceiver } from 'lucide-react';
 
 export const Header: React.FC = () => {
   const {
     trackerState,
     tnMode,
-    paniPuriMode,
+    signals,
     soundEnabled,
     crtOverlay,
     toggleTnMode,
     toggleSound,
     toggleCrt,
   } = useTrackerStore();
+
+  const activeSignalsCount = signals.filter((s) => s.status === 'ACTIVE').length;
 
   const getStatusColor = () => {
     switch (trackerState) {
@@ -33,30 +35,35 @@ export const Header: React.FC = () => {
       {/* Brand Title */}
       <div className="flex items-center space-x-3">
         <div className="w-8 h-8 bg-[#EF4B45]/20 border-2 border-[#EF4B45] flex items-center justify-center">
-          <Shield className="w-5 h-5 text-[#EF4B45]" />
+          <RadioReceiver className="w-5 h-5 text-[#EF4B45] animate-pulse" />
         </div>
         <div>
           <div className="flex items-center space-x-2">
             <h1 className="font-arcade text-lg font-bold text-[#8DEBFF] tracking-wider">
-              SPIDEY TRACKER
+              SPIDEY SIGNAL
             </h1>
             <span className="text-[10px] bg-[#164B8C] text-[#8DEBFF] px-1.5 py-0.5 border border-[#28A9D6]">
-              TN-01
+              SS-01
             </span>
           </div>
           <p className="text-[10px] text-[#8BA9B8] hidden sm:block uppercase">
-            Ned’s Tamil Nadu Tactical Command Terminal
+            Anonymous Temporary Location Signal Network
           </p>
         </div>
       </div>
 
-      {/* Tracker Status Indicator */}
+      {/* Tracker Status & Signals Count Indicator */}
       <div className="flex items-center space-x-2 my-1 sm:my-0">
         <div
           className={`px-3 py-1 text-xs font-arcade font-bold tracking-widest border border-current flex items-center space-x-2 uppercase ${getStatusColor()}`}
         >
           <span className="w-2 h-2 rounded-full bg-current animate-ping" />
           <span>{trackerState.replace('_', ' ')}</span>
+        </div>
+
+        <div className="bg-[#07111F] px-2.5 py-1 border border-[#28A9D6] text-xs font-mono flex items-center space-x-1">
+          <span className="text-[#8BA9B8]">ACTIVE:</span>
+          <strong className="text-[#63D47A] font-bold">{activeSignalsCount}</strong>
         </div>
       </div>
 
@@ -80,7 +87,7 @@ export const Header: React.FC = () => {
         <div className="hidden md:flex items-center space-x-3 bg-[#07111F] px-3 py-1 border border-[#1C55A0] text-[11px]">
           <span className="flex items-center space-x-1">
             <span className="w-2 h-2 rounded-full bg-[#63D47A] animate-pulse" />
-            <span className="text-[#8BA9B8]">SAT 04</span>
+            <span className="text-[#8BA9B8]">NETWORK OK</span>
           </span>
           <span className="text-[#1C55A0]">|</span>
           <span className="flex items-center space-x-1">

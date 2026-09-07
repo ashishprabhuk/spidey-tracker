@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Globe, Target as TargetIcon, Navigation } from 'lucide-react';
 import { useTrackerStore } from '../../stores/useTrackerStore';
-import { Target, PaniPuriLocation, Activity } from '@tn-spider-tracker/shared';
 import { sound } from '../../lib/sound';
 
 export type ScopeMode = 'LOCAL' | 'REGIONAL' | 'GLOBAL';
@@ -16,15 +15,11 @@ export const TacticalRadar: React.FC<TacticalRadarProps> = ({ onRecenter }) => {
 
   const {
     userLocation,
-    selectedTarget,
-    selectedPaniPuri,
-    paniPuriLocations,
-    activities,
-    tnMode,
-    paniPuriMode,
-    activeFilter,
-    selectTarget,
-    selectPaniPuri,
+    signals,
+    selectedSignal,
+    categoryFilter,
+    searchQuery,
+    selectSignal,
     addLog,
   } = useTrackerStore();
 
@@ -48,10 +43,10 @@ export const TacticalRadar: React.FC<TacticalRadarProps> = ({ onRecenter }) => {
   };
 
   const handleRecenterTargetOrUser = () => {
-    if (selectedTarget) {
+    if (selectedSignal) {
       sound.playTargetLock();
-      onRecenter?.({ lat: selectedTarget.latitude, lng: selectedTarget.longitude }, 15);
-      addLog(`RADAR RE-CENTERED ON TARGET // ${selectedTarget.targetCode}`, 'info');
+      onRecenter?.({ lat: selectedSignal.latitude, lng: selectedSignal.longitude }, 15);
+      addLog(`RADAR RE-CENTERED ON SIGNAL // ${selectedSignal.title}`, 'info');
     } else {
       sound.playClick();
       onRecenter?.({ lat: userLocation.lat, lng: userLocation.lng }, 13);
@@ -79,7 +74,6 @@ export const TacticalRadar: React.FC<TacticalRadarProps> = ({ onRecenter }) => {
     const px = cx + distRatio * maxRadiusPx * Math.sin(angle);
     const py = cy - distRatio * maxRadiusPx * Math.cos(angle);
 
-    // Estimate distance in km approx (1 deg ~ 111km)
     const distanceKm = Math.round(rawDistDeg * 111 * 10) / 10;
 
     return { x: px, y: py, distRatio, distanceKm, isOut: rawDistDeg > currentScope.radiusDeg };
@@ -97,27 +91,23 @@ export const TacticalRadar: React.FC<TacticalRadarProps> = ({ onRecenter }) => {
     return points.join(' ');
   };
 
-  // Prepare radar markers
-  const showTarget = (activeFilter === 'ALL' || activeFilter === 'TARGET') && selectedTarget;
-  const showPaniPuri = (activeFilter === 'ALL' || activeFilter === 'PANI_PURI') && (paniPuriMode || tnMode);
-  const showActivities = (activeFilter === 'ALL' || activeFilter === 'ACTIVITY') && tnMode;
+  // Filter active community signals for radar rendering
+  const activeSignals = signals.filter((sig) => {
+    if (sig.status !== 'ACTIVE') return false;
+    if (categoryFilter !== 'ALL' && sig.category !== categoryFilter) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      if (!sig.title.toLowerCase().includes(q) && !sig.category.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  const signalProjs = activeSignals.map((sig) => ({
+    sig,
+    proj: projectCoords(sig.latitude, sig.longitude),
+  }));
 
   const userProj = projectCoords(userLocation.lat, userLocation.lng);
-  const targetProj = showTarget && selectedTarget ? projectCoords(selectedTarget.latitude, selectedTarget.longitude) : null;
-
-  const paniPuriProjs = showPaniPuri
-    ? paniPuriLocations.map((loc) => ({
-        loc,
-        proj: projectCoords(loc.latitude, loc.longitude),
-      }))
-    : [];
-
-  const activityProjs = showActivities
-    ? activities.map((act) => ({
-        act,
-        proj: projectCoords(act.latitude, act.longitude),
-      }))
-    : [];
 
   return (
     <div className="relative group/radar select-none pointer-events-auto flex items-center space-x-2">
@@ -137,7 +127,6 @@ export const TacticalRadar: React.FC<TacticalRadarProps> = ({ onRecenter }) => {
         {/* SVG Radar Visual Canvas */}
         <svg viewBox="0 0 160 160" className="w-full h-full p-1">
           <defs>
-            {/* Sweep Beam Gradient */}
             <radialGradient id={sweepGradientId} cx="50%" cy="50%" r="50%">
               <stop offset="0%" stopColor="#8DEBFF" stopOpacity="0.4" />
               <stop offset="70%" stopColor="#28A9D6" stopOpacity="0.15" />
@@ -189,12 +178,10 @@ export const TacticalRadar: React.FC<TacticalRadarProps> = ({ onRecenter }) => {
 
           {/* Clockwise Animated Cyan Radar Sweep */}
           <g className="animate-radar-sweep origin-center">
-            {/* Sweep sector fan */}
             <path
               d={`M ${cx} ${cy} L ${cx} ${cy - maxRadiusPx} A ${maxRadiusPx} ${maxRadiusPx} 0 0 1 ${cx + maxRadiusPx * Math.sin(Math.PI / 4)} ${cy - maxRadiusPx * Math.cos(Math.PI / 4)} Z`}
               fill={`url(#${sweepGradientId})`}
             />
-            {/* Leading Sweep Line */}
             <line
               x1={cx}
               y1={cy}
@@ -206,94 +193,52 @@ export const TacticalRadar: React.FC<TacticalRadarProps> = ({ onRecenter }) => {
             />
           </g>
 
-          {/* MARKERS LAYER */}
+          {/* Community Signal Dots Layer */}
+          {signalProjs.map(({ sig, proj }) => {
+            const isHigh = sig.priority === 'HIGH';
+            const isMedium = sig.priority === 'MEDIUM';
+            const dotColor = isHigh ? '#EF4B45' : isMedium ? '#FF9F43' : '#8DEBFF';
+            const isSelected = selectedSignal?.id === sig.id;
 
-          {/* 1. Pani Puri Vendor Dots (Yellow) */}
-          {paniPuriProjs.map(({ loc, proj }) => (
-            <g
-              key={loc.id}
-              onClick={() => selectPaniPuri(loc)}
-              onMouseEnter={() =>
-                setHoveredItem({
-                  id: loc.id,
-                  name: loc.name,
-                  type: 'Pani Puri Spot',
-                  distanceKm: proj.distanceKm,
-                })
-              }
-              onMouseLeave={() => setHoveredItem(null)}
-              className="cursor-pointer group/dot"
-            >
-              <circle
-                cx={proj.x}
-                cy={proj.y}
-                r="3.5"
-                className="fill-[#FFD166] stroke-[#07111F] transition-all group-hover/dot:r-5"
-                strokeWidth="1"
-              />
-              <circle cx={proj.x} cy={proj.y} r="6" className="fill-[#FFD166]/20 animate-ping" />
-            </g>
-          ))}
+            return (
+              <g
+                key={sig.id}
+                onClick={() => selectSignal(sig)}
+                onMouseEnter={() =>
+                  setHoveredItem({
+                    id: sig.id,
+                    name: sig.title,
+                    type: `Signal: ${sig.category}`,
+                    distanceKm: proj.distanceKm,
+                  })
+                }
+                onMouseLeave={() => setHoveredItem(null)}
+                className="cursor-pointer group/dot"
+              >
+                {/* Outer Reticle Ring for High Priority / Selected */}
+                {(isHigh || isSelected) && (
+                  <circle
+                    cx={proj.x}
+                    cy={proj.y}
+                    r={isSelected ? '7' : '5.5'}
+                    className="fill-none stroke-[#EF4B45] animate-target-pulse"
+                    strokeWidth="1"
+                    strokeDasharray="2 1"
+                  />
+                )}
+                <circle
+                  cx={proj.x}
+                  cy={proj.y}
+                  r="3.5"
+                  fill={dotColor}
+                  className="stroke-[#07111F] transition-all group-hover/dot:r-5"
+                  strokeWidth="1"
+                />
+              </g>
+            );
+          })}
 
-          {/* 2. Activity Hazard Dots (Orange) */}
-          {activityProjs.map(({ act, proj }) => (
-            <g
-              key={act.id}
-              onClick={() => addLog(`RADAR ACTIVITY: ${act.title}`, 'alert')}
-              onMouseEnter={() =>
-                setHoveredItem({
-                  id: act.id,
-                  name: act.title,
-                  type: `Intel: ${act.type}`,
-                  distanceKm: proj.distanceKm,
-                })
-              }
-              onMouseLeave={() => setHoveredItem(null)}
-              className="cursor-pointer group/dot"
-            >
-              <polygon
-                points={`${proj.x},${proj.y - 4} ${proj.x - 3.5},${proj.y + 3} ${proj.x + 3.5},${proj.y + 3}`}
-                className="fill-[#FF9F43] stroke-[#07111F] transition-all group-hover/dot:scale-125"
-                strokeWidth="1"
-              />
-            </g>
-          ))}
-
-          {/* 3. Spider-Man Target Dot (Neon Red) */}
-          {targetProj && selectedTarget && (
-            <g
-              onClick={() => selectTarget(selectedTarget)}
-              onMouseEnter={() =>
-                setHoveredItem({
-                  id: selectedTarget.id,
-                  name: `${selectedTarget.targetCode} (${selectedTarget.name})`,
-                  type: 'TARGET LOCKED',
-                  distanceKm: targetProj.distanceKm,
-                })
-              }
-              onMouseLeave={() => setHoveredItem(null)}
-              className="cursor-pointer group/dot"
-            >
-              {/* Outer Pulsing Reticle Ring */}
-              <circle
-                cx={targetProj.x}
-                cy={targetProj.y}
-                r="8"
-                className="fill-none stroke-[#EF4B45] animate-target-pulse"
-                strokeWidth="1.2"
-                strokeDasharray="2 2"
-              />
-              <circle
-                cx={targetProj.x}
-                cy={targetProj.y}
-                r="4"
-                className="fill-[#EF4B45] stroke-white shadow-[0_0_10px_#EF4B45]"
-                strokeWidth="1"
-              />
-            </g>
-          )}
-
-          {/* 4. User GPS Location Dot (Neon Green Center) */}
+          {/* User GPS Location Dot (Neon Green Center) */}
           <g
             onMouseEnter={() =>
               setHoveredItem({
@@ -340,13 +285,13 @@ export const TacticalRadar: React.FC<TacticalRadarProps> = ({ onRecenter }) => {
         <button
           onClick={handleRecenterTargetOrUser}
           className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full border active:scale-95 transition-all flex items-center justify-center shadow-lg ${
-            selectedTarget
+            selectedSignal
               ? 'bg-[#EF4B45]/20 border-[#EF4B45] text-[#FF625A] hover:bg-[#EF4B45] hover:text-white shadow-[0_0_10px_rgba(239,75,69,0.5)] animate-pulse'
               : 'bg-[#0D2235]/90 border-[#28A9D6] text-[#8DEBFF] hover:bg-[#1C55A0] hover:border-[#8DEBFF]'
           }`}
-          title={selectedTarget ? `Recenter on Target ${selectedTarget.targetCode}` : 'Recenter on User GPS'}
+          title={selectedSignal ? `Recenter on Signal ${selectedSignal.title}` : 'Recenter on User GPS'}
         >
-          {selectedTarget ? <TargetIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Navigation className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+          {selectedSignal ? <TargetIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Navigation className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
         </button>
       </div>
     </div>

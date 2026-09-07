@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 import {
+  Signal,
+  SignalCategory,
+  SignalCreateInput,
   Target,
   PaniPuriLocation,
   Activity,
@@ -8,26 +11,59 @@ import {
   DEFAULT_SPIDEY_TARGET,
   DEMO_PANI_PURI_LOCATIONS,
   DEMO_ACTIVITIES,
+  DEMO_SIGNALS,
 } from '@tn-spider-tracker/shared';
 import { sound } from '../lib/sound';
 
+// Get or generate persistent anonymous identity for local session
+const getAnonymousSessionId = (): string => {
+  if (typeof window === 'undefined') return 'anon-session-001';
+  let stored = localStorage.getItem('spidey_signal_anon_id');
+  if (!stored) {
+    stored = `anon-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    localStorage.setItem('spidey_signal_anon_id', stored);
+  }
+  return stored;
+};
+
 interface TrackerStore {
-  // States
+  // Anonymous Session & Core States
+  anonymousUserId: string;
   trackerState: TrackerState;
   tnMode: boolean;
   paniPuriMode: boolean;
   crtOverlay: boolean;
   soundEnabled: boolean;
   booted: boolean;
+  userLocation: { lat: number; lng: number };
+
+  // Signals Domain State
+  signals: Signal[];
+  selectedSignal: Signal | null;
+  composerOpen: boolean;
+  mySignalsOpen: boolean;
+  searchQuery: string;
+  categoryFilter: SignalCategory | 'ALL';
+
+  // Legacy & Compatibility Layer
   selectedTarget: Target | null;
   selectedPaniPuri: PaniPuriLocation | null;
-  userLocation: { lat: number; lng: number };
   eventLogs: EventLogItem[];
   paniPuriLocations: PaniPuriLocation[];
   activities: Activity[];
   activeFilter: 'ALL' | 'TARGET' | 'PANI_PURI' | 'ACTIVITY';
 
-  // Actions
+  // Signal Actions
+  createSignal: (input: SignalCreateInput) => Signal;
+  endSignal: (signalId: string) => void;
+  selectSignal: (signal: Signal | null) => void;
+  setComposerOpen: (open: boolean) => void;
+  setMySignalsOpen: (open: boolean) => void;
+  setSearchQuery: (query: string) => void;
+  setCategoryFilter: (category: SignalCategory | 'ALL') => void;
+  checkExpirations: () => void;
+
+  // General System Actions
   setBooted: (booted: boolean) => void;
   startScan: () => Promise<void>;
   toggleTnMode: () => void;
@@ -42,21 +78,43 @@ interface TrackerStore {
   setActiveFilter: (filter: 'ALL' | 'TARGET' | 'PANI_PURI' | 'ACTIVITY') => void;
 }
 
+const initialAnonId = getAnonymousSessionId();
+
+// Tag demo signals with isOwner if matched
+const initialSignals: Signal[] = DEMO_SIGNALS.map((sig) => ({
+  ...sig,
+  category: sig.category as SignalCategory,
+  priority: sig.priority as 'LOW' | 'MEDIUM' | 'HIGH',
+  status: sig.status as 'ACTIVE' | 'ENDED' | 'EXPIRED',
+  isOwner: sig.anonymousUserId === initialAnonId,
+}));
+
 export const useTrackerStore = create<TrackerStore>((set, get) => ({
+  anonymousUserId: initialAnonId,
   trackerState: 'IDLE',
   tnMode: false,
   paniPuriMode: false,
   crtOverlay: true,
   soundEnabled: true,
   booted: false,
+  userLocation: { lat: 13.0827, lng: 80.2707 },
+
+  // Signals Data
+  signals: initialSignals,
+  selectedSignal: initialSignals[0] || null,
+  composerOpen: false,
+  mySignalsOpen: false,
+  searchQuery: '',
+  categoryFilter: 'ALL',
+
+  // Legacy Data
   selectedTarget: null,
   selectedPaniPuri: null,
-  userLocation: { lat: 13.0827, lng: 80.2707 },
   eventLogs: [
     {
       id: 'log-0',
       timestamp: new Date().toLocaleTimeString(),
-      message: 'SPIDEY TRACKER OS v2.4 INITIALIZED',
+      message: 'SPIDEY SIGNAL NETWORK v1.0 ONLINE',
       type: 'system',
     },
     {
@@ -70,8 +128,6 @@ export const useTrackerStore = create<TrackerStore>((set, get) => ({
   activities: DEMO_ACTIVITIES,
   activeFilter: 'ALL',
 
-  setBooted: (booted) => set({ booted }),
-
   addLog: (message, type = 'info') => {
     const newLog: EventLogItem = {
       id: `log-${Date.now()}-${Math.random()}`,
@@ -84,33 +140,141 @@ export const useTrackerStore = create<TrackerStore>((set, get) => ({
     }));
   },
 
+
+  // Signal Domain Actions
+  createSignal: (input) => {
+    const { anonymousUserId, signals, addLog } = get();
+    sound.playTargetLock();
+
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + input.durationMinutes * 60 * 1000);
+
+    const newSignal: Signal = {
+      id: `sig-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      anonymousUserId,
+      title: input.title.trim(),
+      description: input.description?.trim() || null,
+      motto: input.motto?.trim() || null,
+      category: input.category,
+      priority: input.priority,
+      icon: input.icon,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      createdAt: now.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+      status: 'ACTIVE',
+      isOwner: true,
+      isDemo: false,
+    };
+
+    set({
+      signals: [newSignal, ...signals],
+      selectedSignal: newSignal,
+      composerOpen: false,
+    });
+
+    addLog(`COMMUNITY SIGNAL PUBLISHED // ${newSignal.title}`, 'success');
+    return newSignal;
+  },
+
+  endSignal: (signalId) => {
+    const { signals, selectedSignal, addLog } = get();
+    sound.playClick();
+
+    const updated = signals.map((sig) => {
+      if (sig.id === signalId) {
+        return {
+          ...sig,
+          status: 'ENDED' as const,
+          endedAt: new Date().toISOString(),
+        };
+      }
+      return sig;
+    });
+
+    const newSelected = selectedSignal?.id === signalId ? { ...selectedSignal, status: 'ENDED' as const, endedAt: new Date().toISOString() } : selectedSignal;
+
+    set({
+      signals: updated,
+      selectedSignal: newSelected,
+    });
+
+    const targetSig = signals.find((s) => s.id === signalId);
+    addLog(`SIGNAL TERMINATED BY CREATOR // ${targetSig?.title || signalId}`, 'warn');
+  },
+
+  selectSignal: (signal) => {
+    if (signal) sound.playClick();
+    set({ selectedSignal: signal, selectedTarget: null, selectedPaniPuri: null });
+    if (signal) {
+      get().addLog(`SIGNAL INSPECTED // ${signal.title}`, 'info');
+    }
+  },
+
+  setComposerOpen: (composerOpen) => {
+    sound.playClick();
+    set({ composerOpen });
+  },
+
+  setMySignalsOpen: (mySignalsOpen) => {
+    sound.playClick();
+    set({ mySignalsOpen });
+  },
+
+  setSearchQuery: (searchQuery) => {
+    set({ searchQuery });
+  },
+
+  setCategoryFilter: (categoryFilter) => {
+    sound.playClick();
+    set({ categoryFilter });
+  },
+
+  checkExpirations: () => {
+    const { signals } = get();
+    const now = new Date();
+
+    let hasChanges = false;
+    const updated = signals.map((sig) => {
+      if (sig.status === 'ACTIVE' && new Date(sig.expiresAt) <= now) {
+        hasChanges = true;
+        return { ...sig, status: 'EXPIRED' as const };
+      }
+      return sig;
+    });
+
+    if (hasChanges) {
+      set({ signals: updated });
+    }
+  },
+
+  // General System Actions
+  setBooted: (booted) => set({ booted }),
+
   startScan: async () => {
     const { addLog } = get();
     sound.playScanSweep();
 
-    set({ trackerState: 'SCANNING', selectedTarget: null });
-    addLog('INITIATING TAMIL NADU SECTOR SATELLITE SCAN...', 'info');
+    set({ trackerState: 'SCANNING', selectedSignal: null });
+    addLog('INITIATING TAMIL NADU SECTOR SIGNAL SCAN...', 'info');
 
-    // Simulate multi-stage scanning sequence
     setTimeout(() => {
       sound.playScanSweep();
       set({ trackerState: 'SIGNAL_DETECTED' });
-      addLog('HIGH-FREQUENCY BIO-SIGNAL DETECTED IN CHENNAI ZONE', 'warn');
+      addLog('7 TEMPORARY COMMUNITY SIGNALS DETECTED IN CHENNAI ZONE', 'warn');
     }, 1200);
 
     setTimeout(() => {
       sound.playTargetLock();
-      const target: Target = {
-        ...DEFAULT_SPIDEY_TARGET,
-        latitude: get().userLocation.lat + 0.006,
-        longitude: get().userLocation.lng + 0.004,
-        lastDetectedAt: new Date().toISOString(),
-      };
+      const activeSigs = get().signals.filter((s) => s.status === 'ACTIVE');
+      const targetSig = activeSigs[0] || null;
       set({
         trackerState: 'TARGET_LOCKED',
-        selectedTarget: target,
+        selectedSignal: targetSig,
       });
-      addLog(`TARGET LOCKED // ${target.targetCode} (${target.name})`, 'success');
+      if (targetSig) {
+        addLog(`SIGNAL LOCKED // ${targetSig.title}`, 'success');
+      }
     }, 2400);
   },
 
@@ -122,7 +286,7 @@ export const useTrackerStore = create<TrackerStore>((set, get) => ({
       paniPuriMode: newMode ? true : get().paniPuriMode,
     });
     get().addLog(
-      newMode ? 'TAMIL NADU MODE ENABLED // SPECIAL SECTOR LAYERS ACTIVE' : 'TN MODE DEACTIVATED',
+      newMode ? 'TAMIL NADU MODE ENABLED // REGIONAL SIGNALS ACTIVE' : 'TN MODE DEACTIVATED',
       newMode ? 'alert' : 'info'
     );
   },
@@ -132,14 +296,14 @@ export const useTrackerStore = create<TrackerStore>((set, get) => ({
     sound.playPaniPuriDetect();
     set({ paniPuriMode: newMode });
     get().addLog(
-      newMode ? 'PANI PURI SCANNER ACTIVE // 6 NEARBY VENDORS LOCATED' : 'PANI PURI SCANNER OFF',
+      newMode ? 'PANI PURI SCANNER ACTIVE // FOOD SIGNALS FILTERED' : 'PANI PURI SCANNER OFF',
       'info'
     );
   },
 
   selectPaniPuri: (location) => {
     if (location) sound.playClick();
-    set({ selectedPaniPuri: location });
+    set({ selectedPaniPuri: location, selectedSignal: null });
     if (location) {
       get().addLog(`PANI PURI INTEL OPENED // ${location.name}`, 'info');
     }
@@ -147,19 +311,22 @@ export const useTrackerStore = create<TrackerStore>((set, get) => ({
 
   selectTarget: (target) => {
     if (target) sound.playClick();
-    set({ selectedTarget: target });
+    set({ selectedTarget: target, selectedSignal: null });
   },
 
   resetTracker: () => {
     sound.playClick();
     set({
       trackerState: 'IDLE',
+      selectedSignal: null,
       selectedTarget: null,
       selectedPaniPuri: null,
       tnMode: false,
       paniPuriMode: false,
+      searchQuery: '',
+      categoryFilter: 'ALL',
     });
-    get().addLog('TRACKER SYSTEM RESET TO IDLE STATE', 'system');
+    get().addLog('SPIDEY SIGNAL NETWORK RESET TO STANDBY', 'system');
   },
 
   toggleSound: () => {
