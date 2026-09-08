@@ -1,4 +1,5 @@
 import React from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { useTrackerStore } from './stores/useTrackerStore';
 import { Header } from './components/HUD/Header';
 import { SearchBar } from './components/HUD/SearchBar';
@@ -74,6 +75,9 @@ export const App: React.FC = () => {
       <div className="hidden md:block">
         <EventLog />
       </div>
+
+      {/* Vercel Web Analytics */}
+      <Analytics />
     </div>
   );
 };
