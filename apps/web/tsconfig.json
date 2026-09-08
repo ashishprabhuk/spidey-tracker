@@ -24,5 +24,7 @@
       "@tn-spider-tracker/*": ["../../packages/*"]
     }
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*",  "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.d.ts"]
 }

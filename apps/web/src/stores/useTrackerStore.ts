@@ -9,11 +9,9 @@ import {
   TrackerState,
   EventLogItem,
   DEFAULT_SPIDEY_TARGET,
-  DEMO_PANI_PURI_LOCATIONS,
-  DEMO_ACTIVITIES,
-  DEMO_SIGNALS,
 } from '@tn-spider-tracker/shared';
 import { sound } from '../lib/sound';
+import { fetchActiveSignals } from '../services/signals.api';
 
 // Get or generate persistent anonymous identity for local session
 const getAnonymousSessionId = (): string => {
@@ -29,6 +27,7 @@ const getAnonymousSessionId = (): string => {
 interface TrackerStore {
   // Anonymous Session & Core States
   anonymousUserId: string;
+  setAnonymousUserId: (id: string) => void;
   trackerState: TrackerState;
   tnMode: boolean;
   paniPuriMode: boolean;
@@ -61,6 +60,8 @@ interface TrackerStore {
   flyToLocation: (coords: { lat: number; lng: number }) => void;
 
   // Signal Actions
+  setSignals: (signals: Signal[]) => void;
+  loadSignals: () => Promise<void>;
   createSignal: (input: SignalCreateInput) => Signal;
   endSignal: (signalId: string) => void;
   selectSignal: (signal: Signal | null) => void;
@@ -87,17 +88,9 @@ interface TrackerStore {
 
 const initialAnonId = getAnonymousSessionId();
 
-// Tag demo signals with isOwner if matched
-const initialSignals: Signal[] = DEMO_SIGNALS.map((sig) => ({
-  ...sig,
-  category: sig.category as SignalCategory,
-  priority: sig.priority as 'LOW' | 'MEDIUM' | 'HIGH',
-  status: sig.status as 'ACTIVE' | 'ENDED' | 'EXPIRED',
-  isOwner: sig.anonymousUserId === initialAnonId,
-}));
-
 export const useTrackerStore = create<TrackerStore>((set, get) => ({
   anonymousUserId: initialAnonId,
+  setAnonymousUserId: (id) => set({ anonymousUserId: id }),
   trackerState: 'IDLE',
   tnMode: false,
   paniPuriMode: false,
@@ -111,6 +104,23 @@ export const useTrackerStore = create<TrackerStore>((set, get) => ({
 
   flyToLocation: (coords) => {
     set({ navTargetCoords: coords });
+  },
+
+  setSignals: (signals) => set({ signals }),
+
+  loadSignals: async () => {
+    try {
+      const fetched = await fetchActiveSignals();
+      const currentAnonId = get().anonymousUserId;
+      const formattedSignals: Signal[] = fetched.map((s: any) => ({
+        ...s,
+        isOwner: s.anonymousUserId === currentAnonId,
+      }));
+      set({ signals: formattedSignals });
+      get().addLog(`LOADED ${formattedSignals.length} SIGNALS FROM SUPABASE`, 'info');
+    } catch (err) {
+      console.error('Failed to load signals from Supabase:', err);
+    }
   },
 
   requestUserLocation: async () => {
@@ -157,8 +167,8 @@ export const useTrackerStore = create<TrackerStore>((set, get) => ({
   },
 
   // Signals Data
-  signals: initialSignals,
-  selectedSignal: initialSignals[0] || null,
+  signals: [],
+  selectedSignal: null,
   composerOpen: false,
   mySignalsOpen: false,
   searchQuery: '',
@@ -181,8 +191,8 @@ export const useTrackerStore = create<TrackerStore>((set, get) => ({
       type: 'info',
     },
   ],
-  paniPuriLocations: DEMO_PANI_PURI_LOCATIONS,
-  activities: DEMO_ACTIVITIES,
+  paniPuriLocations: [],
+  activities: [],
   activeFilter: 'ALL',
 
   addLog: (message, type = 'info') => {

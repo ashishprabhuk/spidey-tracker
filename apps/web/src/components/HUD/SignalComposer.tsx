@@ -4,6 +4,7 @@ import { X, Send, MapPin, Radio, AlertTriangle, Navigation } from 'lucide-react'
 import { useTrackerStore } from '../../stores/useTrackerStore';
 import { SignalCategory, SignalPriority } from '@tn-spider-tracker/shared';
 import { sound } from '../../lib/sound';
+import { createSignal as createSignalApi } from '../../services/signals.api';
 
 const ICONS = ['🚓', '🚗', '⚠️', '🚧', '🌧️', '💧', '🎉', '🏏', '☕', '🥤', '📍', '🔥', '⚡'];
 
@@ -115,21 +116,40 @@ export const SignalComposer: React.FC = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
-    createSignal({
-      title: title.trim(),
-      description: description.trim() || undefined,
-      motto: motto.trim() || undefined,
-      category,
-      priority,
-      icon,
-      latitude: selectedCoords.lat,
-      longitude: selectedCoords.lng,
-      durationMinutes,
-    });
+    try {
+      await createSignalApi({
+        category,
+        title: title.trim(),
+        description: description.trim() || undefined,
+        motto: motto.trim() || undefined,
+        icon,
+        priority,
+        latitude: selectedCoords.lat,
+        longitude: selectedCoords.lng,
+        durationMinutes,
+      });
+
+      // Refresh signals directly from Supabase
+      await useTrackerStore.getState().loadSignals();
+      setComposerOpen(false);
+    } catch (err: any) {
+      console.warn('Supabase createSignal warning, creating locally:', err);
+      createSignal({
+        title: title.trim(),
+        description: description.trim() || undefined,
+        motto: motto.trim() || undefined,
+        category,
+        priority,
+        icon,
+        latitude: selectedCoords.lat,
+        longitude: selectedCoords.lng,
+        durationMinutes,
+      });
+    }
   };
 
   return (

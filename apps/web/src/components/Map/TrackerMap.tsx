@@ -28,6 +28,7 @@ export const TrackerMap: React.FC = () => {
     addLog,
     checkExpirations,
     navTargetCoords,
+    loadSignals,
   } = useTrackerStore();
 
   // Fly camera to navTargetCoords when search or location trigger occurs
@@ -61,12 +62,14 @@ export const TrackerMap: React.FC = () => {
         addLog('SPIDEY SIGNAL MAP CARTOGRAPHY LOADED (SECTOR: TN-CHN)', 'system');
         // Initial browser geolocation request
         requestUserLocation();
+        loadSignals();
       });
 
       map.current.on('moveend', () => {
         if (map.current) {
           const center = map.current.getCenter();
           setMapCenterCoords({ lat: center.lat, lng: center.lng });
+          loadSignals();
         }
       });
 

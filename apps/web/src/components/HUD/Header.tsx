@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTrackerStore } from '../../stores/useTrackerStore';
 import { Volume2, VolumeX, Monitor, Radio, Flame, RadioReceiver } from 'lucide-react';
+import { createSignal as createSignalApi } from '../../services/signals.api';
 
 export const Header: React.FC = () => {
   const {
@@ -81,6 +82,34 @@ export const Header: React.FC = () => {
         >
           <Flame className="w-3.5 h-3.5" />
           <span>TN MODE: {tnMode ? 'ON' : 'OFF'}</span>
+        </button>
+
+        {/* Temporary Stage 8 Test Signal API Button */}
+        <button
+          onClick={async () => {
+            try {
+              const signal = await createSignalApi({
+                category: 'TRAFFIC',
+                title: 'Police Checkpoint',
+                description: 'Checking vehicles ahead',
+                motto: 'Slow down',
+                icon: '🚓',
+                priority: 'HIGH',
+                latitude: 10.7905,
+                longitude: 78.7047,
+                durationMinutes: 60,
+              });
+              console.log('✅ Signal inserted successfully:', signal);
+              alert('✅ Signal inserted successfully: ' + JSON.stringify(signal));
+            } catch (err: any) {
+              console.error('❌ Supabase error:', err);
+              alert('❌ Supabase Error: ' + (err.message || JSON.stringify(err)));
+            }
+          }}
+          className="px-2 border text-xs font-bold uppercase flex items-center space-x-1 py-1 bg-[#164B8C] hover:bg-[#1C55A0] text-[#8DEBFF] border-[#28A9D6]"
+          title="Test createSignal API call to Supabase"
+        >
+          <span>🧪 TEST SIGNAL</span>
         </button>
 
         {/* Status Indicators */}
